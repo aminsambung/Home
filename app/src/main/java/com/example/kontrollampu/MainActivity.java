@@ -1,12 +1,19 @@
 package com.example.kontrollampu;
 
+import android.app.AlarmManager;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
+import android.app.TimePickerDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.CountDownTimer;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.animation.Animation;
@@ -14,12 +21,12 @@ import android.view.animation.AnimationUtils;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.EditText;
 import android.widget.GridLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.TimePicker;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -33,16 +40,13 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Calendar;
 import java.util.List;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int JUMLAH_LAMPU = 8;
     private GridLayout gridLampu;
-    
-    // Deklarasi variabel menggunakan MaterialButton
     private MaterialButton btnAllOn, btnAllOff, btnTimer, btnAturan, btnRiwayat, btnTema;
     private TextView tvStatusInfo;
 
@@ -54,7 +58,22 @@ public class MainActivity extends AppCompatActivity {
 
     private SharedPreferences prefs;
     private boolean isUpdatingFromCode = false;
-    private final Map<Integer, CountDownTimer> activeTimers = new HashMap<>();
+
+    // Broadcast Receiver untuk menerima sinyal Alarm
+    private final BroadcastReceiver alarmReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int lampuIndex = intent.getIntExtra("lampuIndex", -1);
+            boolean nyala = intent.getBooleanExtra("nyala", false);
+            if (lampuIndex != -1) {
+                statusLampu[lampuIndex] = nyala;
+                updateTampilanLampu(lampuIndex, nyala, true);
+                simpanStatus(lampuIndex, nyala);
+                updateStatusInfo();
+                Toast.makeText(context, "Jadwal berjalan: Lampu " + (lampuIndex+1) + (nyala ? " ON" : " OFF"), Toast.LENGTH_SHORT).show();
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +83,14 @@ public class MainActivity extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Daftarkan Receiver
+        IntentFilter filter = new IntentFilter("com.example.kontrollampu.ALARM_TRIGGER");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(alarmReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(alarmReceiver, filter);
+        }
 
         gridLampu = findViewById(R.id.gridLampu);
         btnAllOn = findViewById(R.id.btnAllOn);
@@ -80,7 +107,6 @@ public class MainActivity extends AppCompatActivity {
             int newMode = (currentMode == AppCompatDelegate.MODE_NIGHT_YES) 
                           ? AppCompatDelegate.MODE_NIGHT_NO 
                           : AppCompatDelegate.MODE_NIGHT_YES;
-            
             prefs.edit().putInt("mode_tema", newMode).apply();
             AppCompatDelegate.setDefaultNightMode(newMode);
             recreate(); 
@@ -90,19 +116,23 @@ public class MainActivity extends AppCompatActivity {
 
         btnAllOn.setOnClickListener(v -> setSemuaLampu(true));
         btnAllOff.setOnClickListener(v -> setSemuaLampu(false));
-        btnTimer.setOnClickListener(v -> showMenuTimer());
+        btnTimer.setOnClickListener(v -> showTimerDialog(-1)); // -1 = Buat Baru
         btnAturan.setOnClickListener(v -> showAturanDialog(-1));
         btnRiwayat.setOnClickListener(v -> showMenuRiwayat());
 
         updateStatusInfo();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(alarmReceiver);
+    }
+
+    // ... (Fungsi buatItemLampu, updateTampilanLampu, setSemuaLampu, updateStatusInfo, simpanStatus TETAP SAMA) ...
     private void updateTombolTemaUI(int mode) {
-        if (mode == AppCompatDelegate.MODE_NIGHT_YES) {
-            btnTema.setText("☀️");
-        } else {
-            btnTema.setText("🌙");
-        }
+        if (mode == AppCompatDelegate.MODE_NIGHT_YES) btnTema.setText("☀️");
+        else btnTema.setText("🌙");
     }
 
     private void buatItemLampu() {
@@ -126,10 +156,7 @@ public class MainActivity extends AppCompatActivity {
                 updateTampilanLampu(index, statusLampu[index], true);
                 updateStatusInfo();
                 simpanStatus(index, statusLampu[index]);
-                
-                if (!isUpdatingFromCode) {
-                    evaluasiSemuaAturan(index, statusLampu[index]);
-                }
+                if (!isUpdatingFromCode) evaluasiSemuaAturan(index, statusLampu[index]);
             });
 
             itemView.setOnClickListener(v -> btnPowers[index].performClick());
@@ -158,7 +185,6 @@ public class MainActivity extends AppCompatActivity {
             btnPowers[index].setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.power_off_bg)));
             btnPowers[index].setColorFilter(getColor(R.color.power_off_tint));
         }
-
         if (animate) {
             Animation anim = AnimationUtils.loadAnimation(this, android.R.anim.fade_in);
             anim.setDuration(300);
@@ -180,9 +206,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateStatusInfo() {
         int count = 0;
-        for (boolean status : statusLampu) {
-            if (status) count++;
-        }
+        for (boolean status : statusLampu) if (status) count++;
         tvStatusInfo.setText(count + " dari " + JUMLAH_LAMPU + " lampu menyala");
     }
 
@@ -190,17 +214,20 @@ public class MainActivity extends AppCompatActivity {
         prefs.edit().putBoolean("lampu_" + index, isNyala).apply();
     }
 
+    // ==========================================
+    // MENU RIWAYAT
+    // ==========================================
     private void showMenuRiwayat() {
-        String[] pilihan = {"Riwayat Aturan Otomatis", "Riwayat Timer Aktif"};
-        new AlertDialog.Builder(this)
-                .setTitle("Pilih Riwayat")
-                .setItems(pilihan, (dialog, which) -> {
-                    if (which == 0) showRiwayatAturan();
-                    else showRiwayatTimer();
-                })
-                .show();
+        String[] pilihan = {"Riwayat Aturan Otomatis", "Riwayat Jadwal (Timer)"};
+        new AlertDialog.Builder(this).setTitle("Pilih Riwayat").setItems(pilihan, (dialog, which) -> {
+            if (which == 0) showRiwayatAturan();
+            else showRiwayatTimer();
+        }).show();
     }
 
+    // ==========================================
+    // 1. RIWAYAT ATURAN (TETAP)
+    // ==========================================
     private void showRiwayatAturan() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_riwayat_aturan, null);
@@ -213,9 +240,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void renderListAturan(LinearLayout layoutList, AlertDialog dialog) {
         layoutList.removeAllViews();
-        String jsonStr = prefs.getString("aturan_list", "[]");
         try {
-            JSONArray jsonArray = new JSONArray(jsonStr);
+            JSONArray jsonArray = new JSONArray(prefs.getString("aturan_list", "[]"));
             if (jsonArray.length() == 0) {
                 TextView tv = new TextView(this);
                 tv.setText("Belum ada aturan.");
@@ -223,7 +249,6 @@ public class MainActivity extends AppCompatActivity {
                 layoutList.addView(tv);
                 return;
             }
-
             for (int i = 0; i < jsonArray.length(); i++) {
                 final int indexAturan = i;
                 JSONObject aturan = jsonArray.getJSONObject(i);
@@ -231,97 +256,40 @@ public class MainActivity extends AppCompatActivity {
                 boolean status = aturan.getBoolean("status_pemicu");
                 String aksi = aturan.getString("aksi");
                 JSONArray targets = aturan.getJSONArray("targets");
-                
                 StringBuilder targetStr = new StringBuilder();
-                for (int j = 0; j < targets.length(); j++) {
-                    targetStr.append("Lampu ").append(targets.getInt(j) + 1).append(", ");
-                }
+                for (int j = 0; j < targets.length(); j++) targetStr.append("Lampu ").append(targets.getInt(j) + 1).append(", ");
 
-                String text = "Lampu " + pemicu + " " + (status ? "ON" : "OFF") + 
-                              " -> " + aksi + " " + targetStr.toString().replaceAll(", $", "");
-
+                String text = "Lampu " + pemicu + " " + (status ? "ON" : "OFF") + " -> " + aksi + " " + targetStr.toString().replaceAll(", $", "");
                 TextView tv = new TextView(this);
                 tv.setText(text);
                 tv.setTextColor(getColor(R.color.text_dark_light));
                 tv.setPadding(0, 16, 0, 16);
-
                 LinearLayout row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 
                 Button btnEdit = new Button(this);
                 btnEdit.setText("Edit");
-                btnEdit.setOnClickListener(v -> {
-                    dialog.dismiss();
-                    showAturanDialog(indexAturan); 
-                });
-
+                btnEdit.setOnClickListener(v -> { dialog.dismiss(); showAturanDialog(indexAturan); });
                 Button btnHapus = new Button(this);
                 btnHapus.setText("Hapus");
-                btnHapus.setOnClickListener(v -> {
-                    hapusAturan(indexAturan);
-                    renderListAturan(layoutList, dialog);
-                });
+                btnHapus.setOnClickListener(v -> { hapusAturan(indexAturan); renderListAturan(layoutList, dialog); });
 
                 row.addView(tv, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-                row.addView(btnEdit);
-                row.addView(btnHapus);
+                row.addView(btnEdit); row.addView(btnHapus);
                 layoutList.addView(row);
             }
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
     private void hapusAturan(int index) {
-        String jsonStr = prefs.getString("aturan_list", "[]");
         try {
-            JSONArray jsonArray = new JSONArray(jsonStr);
+            JSONArray jsonArray = new JSONArray(prefs.getString("aturan_list", "[]"));
             List<JSONObject> list = new ArrayList<>();
-            for (int i = 0; i < jsonArray.length(); i++) {
-                if (i != index) list.add(jsonArray.getJSONObject(i));
-            }
+            for (int i = 0; i < jsonArray.length(); i++) if (i != index) list.add(jsonArray.getJSONObject(i));
             JSONArray newArray = new JSONArray();
             for (JSONObject obj : list) newArray.put(obj);
             prefs.edit().putString("aturan_list", newArray.toString()).apply();
         } catch (JSONException e) { e.printStackTrace(); }
-    }
-
-    private void showRiwayatTimer() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View view = getLayoutInflater().inflate(R.layout.dialog_riwayat_timer, null);
-        builder.setView(view);
-        LinearLayout layoutList = view.findViewById(R.id.layoutListTimer);
-        
-        if (activeTimers.isEmpty()) {
-            TextView tv = new TextView(this);
-            tv.setText("Tidak ada timer yang aktif.");
-            tv.setTextColor(getColor(R.color.text_gray_light));
-            layoutList.addView(tv);
-        } else {
-            for (Map.Entry<Integer, CountDownTimer> entry : activeTimers.entrySet()) {
-                final int indexLampu = entry.getKey();
-                LinearLayout row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setPadding(0, 16, 0, 16);
-
-                TextView tv = new TextView(this);
-                tv.setText("Timer Lampu " + (indexLampu + 1) + " berjalan...");
-                tv.setTextColor(getColor(R.color.text_dark_light));
-
-                Button btnBatal = new Button(this);
-                btnBatal.setText("Batalkan");
-                btnBatal.setOnClickListener(v -> {
-                    entry.getValue().cancel();
-                    activeTimers.remove(indexLampu);
-                    Toast.makeText(this, "Timer Lampu " + (indexLampu+1) + " dibatalkan", Toast.LENGTH_SHORT).show();
-                    showRiwayatTimer();
-                });
-
-                row.addView(tv, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-                row.addView(btnBatal);
-                layoutList.addView(row);
-            }
-        }
-        builder.setPositiveButton("Tutup", (d, w) -> d.dismiss());
-        builder.create().show();
     }
 
     private void showAturanDialog(int editIndex) {
@@ -337,7 +305,6 @@ public class MainActivity extends AppCompatActivity {
 
         List<String> listLampu = new ArrayList<>();
         for (int i = 1; i <= JUMLAH_LAMPU; i++) listLampu.add("Lampu " + i);
-        
         spinnerPemicu.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, listLampu));
         spinnerStatusPemicu.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"HIDUP (ON)", "MATI (OFF)"}));
         spinnerAksiTarget.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"HIDUPKAN", "MATIKAN"}));
@@ -346,37 +313,20 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < JUMLAH_LAMPU; i++) {
             checkBoxes[i] = new CheckBox(this);
             checkBoxes[i].setText("Lampu " + (i + 1));
-            
-            if (isDarkMode()) checkBoxes[i].setTextColor(Color.WHITE);
-            else checkBoxes[i].setTextColor(Color.BLACK);
-            
-            ColorStateList colorStateList = new ColorStateList(
-                new int[][]{
-                    new int[]{android.R.attr.state_checked},
-                    new int[]{-android.R.attr.state_checked}
-                },
-                new int[]{
-                    getColor(R.color.hijau_primary), 
-                    getColor(R.color.text_gray_light) 
-                }
-            );
-            checkBoxes[i].setButtonTintList(colorStateList);
-
+            checkBoxes[i].setTextColor(isDarkMode() ? Color.WHITE : Color.BLACK);
+            ColorStateList csl = new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked}, new int[]{-android.R.attr.state_checked}}, new int[]{getColor(R.color.hijau_primary), getColor(R.color.text_gray_light)});
+            checkBoxes[i].setButtonTintList(csl);
             layoutCheckboxTarget.addView(checkBoxes[i]);
         }
 
         if (editIndex >= 0) {
-            String jsonStr = prefs.getString("aturan_list", "[]");
             try {
-                JSONArray jsonArray = new JSONArray(jsonStr);
-                JSONObject aturanLama = jsonArray.getJSONObject(editIndex);
+                JSONObject aturanLama = new JSONArray(prefs.getString("aturan_list", "[]")).getJSONObject(editIndex);
                 spinnerPemicu.setSelection(aturanLama.getInt("pemicu"));
                 spinnerStatusPemicu.setSelection(aturanLama.getBoolean("status_pemicu") ? 0 : 1);
                 spinnerAksiTarget.setSelection(aturanLama.getString("aksi").equals("ON") ? 0 : 1);
                 JSONArray targets = aturanLama.getJSONArray("targets");
-                for (int j = 0; j < targets.length(); j++) {
-                    checkBoxes[targets.getInt(j)].setChecked(true);
-                }
+                for (int j = 0; j < targets.length(); j++) checkBoxes[targets.getInt(j)].setChecked(true);
                 btnSimpanAturan.setText("Update Aturan");
             } catch (JSONException e) { e.printStackTrace(); }
         }
@@ -388,17 +338,10 @@ public class MainActivity extends AppCompatActivity {
             int pemicuIndex = spinnerPemicu.getSelectedItemPosition();
             boolean pemicuStatus = spinnerStatusPemicu.getSelectedItemPosition() == 0;
             String aksi = spinnerAksiTarget.getSelectedItemPosition() == 0 ? "ON" : "OFF";
-
             List<Integer> targetIndices = new ArrayList<>();
-            for (int i = 0; i < JUMLAH_LAMPU; i++) {
-                if (checkBoxes[i].isChecked() && i != pemicuIndex) targetIndices.add(i);
-            }
+            for (int i = 0; i < JUMLAH_LAMPU; i++) if (checkBoxes[i].isChecked() && i != pemicuIndex) targetIndices.add(i);
 
-            if (targetIndices.isEmpty()) {
-                Toast.makeText(this, "Pilih minimal 1 lampu target!", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
+            if (targetIndices.isEmpty()) { Toast.makeText(this, "Pilih minimal 1 lampu target!", Toast.LENGTH_SHORT).show(); return; }
             if (editIndex >= 0) hapusAturan(editIndex);
             simpanAturanKeJSON(pemicuIndex, pemicuStatus, aksi, targetIndices);
             Toast.makeText(this, (editIndex >= 0 ? "Aturan Diperbarui!" : "Aturan Tersimpan!"), Toast.LENGTH_SHORT).show();
@@ -407,30 +350,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void simpanAturanKeJSON(int pemicuIndex, boolean pemicuStatus, String aksi, List<Integer> targets) {
-        String jsonStr = prefs.getString("aturan_list", "[]");
         try {
-            JSONArray jsonArray = new JSONArray(jsonStr);
+            JSONArray jsonArray = new JSONArray(prefs.getString("aturan_list", "[]"));
             JSONObject aturanBaru = new JSONObject();
-            aturanBaru.put("pemicu", pemicuIndex);
-            aturanBaru.put("status_pemicu", pemicuStatus);
-            aturanBaru.put("aksi", aksi);
-            aturanBaru.put("targets", new JSONArray(targets));
+            aturanBaru.put("pemicu", pemicuIndex); aturanBaru.put("status_pemicu", pemicuStatus); aturanBaru.put("aksi", aksi); aturanBaru.put("targets", new JSONArray(targets));
             jsonArray.put(aturanBaru);
             prefs.edit().putString("aturan_list", jsonArray.toString()).apply();
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
     private void evaluasiSemuaAturan(int changedIndex, boolean isNyala) {
-        String jsonStr = prefs.getString("aturan_list", "[]");
         try {
-            JSONArray jsonArray = new JSONArray(jsonStr);
+            JSONArray jsonArray = new JSONArray(prefs.getString("aturan_list", "[]"));
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject aturan = jsonArray.getJSONObject(i);
                 if (aturan.getInt("pemicu") == changedIndex && aturan.getBoolean("status_pemicu") == isNyala) {
-                    String aksi = aturan.getString("aksi");
-                    boolean setKeNyala = aksi.equals("ON");
+                    boolean setKeNyala = aturan.getString("aksi").equals("ON");
                     JSONArray targets = aturan.getJSONArray("targets");
-
                     isUpdatingFromCode = true;
                     for (int j = 0; j < targets.length(); j++) {
                         int targetIdx = targets.getInt(j);
@@ -447,77 +383,163 @@ public class MainActivity extends AppCompatActivity {
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
-    private void showMenuTimer() {
-        String[] pilihan = {"Buat Timer Baru", "Lihat Timer Aktif"};
-        new AlertDialog.Builder(this)
-                .setTitle("Menu Timer")
-                .setItems(pilihan, (dialog, which) -> {
-                    if (which == 0) showBuatTimerDialog();
-                    else showRiwayatTimer();
-                })
-                .show();
-    }
-
-    private void showBuatTimerDialog() {
+    // ==========================================
+    // 2. JADWAL TIMER (BARU: ON & OFF TIME)
+    // ==========================================
+    private void showTimerDialog(int editIndex) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_timer, null);
         builder.setView(view);
 
-        Spinner spinnerLampu = new Spinner(this);
+        Spinner spinnerLampu = view.findViewById(R.id.spinnerLampuTimer);
+        TimePicker timeStart = view.findViewById(R.id.timePickerStart);
+        TimePicker timeEnd = view.findViewById(R.id.timePickerEnd);
+        timeStart.setIs24HourView(true);
+        timeEnd.setIs24HourView(true);
+
         List<String> listLampu = new ArrayList<>();
         for (int i = 1; i <= JUMLAH_LAMPU; i++) listLampu.add("Lampu " + i);
         spinnerLampu.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, listLampu));
-        
-        LinearLayout root = (LinearLayout) view;
-        root.addView(spinnerLampu, 1);
 
-        EditText etMenit = view.findViewById(R.id.etMenit);
-        builder.setPositiveButton("Mulai", null);
+        if (editIndex >= 0) {
+            try {
+                JSONObject jadwal = new JSONArray(prefs.getString("timer_list", "[]")).getJSONObject(editIndex);
+                spinnerLampu.setSelection(jadwal.getInt("lampu"));
+                timeStart.setHour(jadwal.getInt("startHour"));
+                timeStart.setMinute(jadwal.getInt("startMin"));
+                timeEnd.setHour(jadwal.getInt("endHour"));
+                timeEnd.setMinute(jadwal.getInt("endMin"));
+            } catch (JSONException e) { e.printStackTrace(); }
+        }
+
+        builder.setPositiveButton("Simpan Jadwal", null);
         builder.setNegativeButton("Batal", (d, w) -> d.dismiss());
-
         AlertDialog dialog = builder.create();
         dialog.show();
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String input = etMenit.getText().toString();
-            if (input.isEmpty()) return;
-            int menit = Integer.parseInt(input);
-            int lampuIndex = spinnerLampu.getSelectedItemPosition();
+            int lampuIdx = spinnerLampu.getSelectedItemPosition();
+            int sHour = timeStart.getHour(); int sMin = timeStart.getMinute();
+            int eHour = timeEnd.getHour(); int eMin = timeEnd.getMinute();
+
+            if (editIndex >= 0) hapusTimer(editIndex); // Hapus lama jika edit
+            simpanJadwalKeJSON(lampuIdx, sHour, sMin, eHour, eMin);
+            setAlarm(lampuIdx, sHour, sMin, true);  // Pasang alarm ON
+            setAlarm(lampuIdx, eHour, eMin, false); // Pasang alarm OFF
             
-            if (menit < 1 || menit > 1440) {
-                Toast.makeText(this, "Minimal 1 menit, Maksimal 1440 menit", Toast.LENGTH_LONG).show();
-                return;
-            }
-            mulaiTimerSpesifik(lampuIndex, menit);
+            Toast.makeText(this, "Jadwal Tersimpan & Alarm Aktif!", Toast.LENGTH_SHORT).show();
             dialog.dismiss();
         });
     }
 
-    private void mulaiTimerSpesifik(int indexLampu, int menit) {
-        if (activeTimers.containsKey(indexLampu)) {
-            activeTimers.get(indexLampu).cancel();
+    private void simpanJadwalKeJSON(int lampuIdx, int sHour, int sMin, int eHour, int eMin) {
+        try {
+            JSONArray jsonArray = new JSONArray(prefs.getString("timer_list", "[]"));
+            JSONObject jadwal = new JSONObject();
+            jadwal.put("lampu", lampuIdx);
+            jadwal.put("startHour", sHour); jadwal.put("startMin", sMin);
+            jadwal.put("endHour", eHour); jadwal.put("endMin", eMin);
+            jsonArray.put(jadwal);
+            prefs.edit().putString("timer_list", jsonArray.toString()).apply();
+        } catch (JSONException e) { e.printStackTrace(); }
+    }
+
+    private void setAlarm(int lampuIdx, int hour, int minute, boolean nyala) {
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent("com.example.kontrollampu.ALARM_TRIGGER");
+        intent.putExtra("lampuIndex", lampuIdx);
+        intent.putExtra("nyala", nyala);
+        
+        // Menggunakan requestCode unik agar alarm tidak saling menimpa
+        int reqCode = (lampuIdx * 10) + (nyala ? 1 : 2); 
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, reqCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.HOUR_OF_DAY, hour);
+        calendar.set(Calendar.MINUTE, minute);
+        calendar.set(Calendar.SECOND, 0);
+
+        // Jika waktu sudah lewat hari ini, set untuk besok
+        if (calendar.getTimeInMillis() < System.currentTimeMillis()) {
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
         }
 
-        long durasiMs = menit * 60L * 1000L;
-        Toast.makeText(this, "Timer Lampu " + (indexLampu+1) + " aktif: " + menit + " menit", Toast.LENGTH_LONG).show();
-
-        CountDownTimer timer = new CountDownTimer(durasiMs, 1000) {
-            @Override public void onTick(long millisUntilFinished) {}
-            @Override
-            public void onFinish() {
-                statusLampu[indexLampu] = true;
-                updateTampilanLampu(indexLampu, true, true);
-                simpanStatus(indexLampu, true);
-                activeTimers.remove(indexLampu);
-                updateStatusInfo();
-                Toast.makeText(MainActivity.this, "Waktu habis! Lampu " + (indexLampu+1) + " menyala.", Toast.LENGTH_LONG).show();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+            } else {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
             }
-        }.start();
-        activeTimers.put(indexLampu, timer);
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+        }
+    }
+
+    private void showRiwayatTimer() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = getLayoutInflater().inflate(R.layout.dialog_riwayat_timer, null);
+        builder.setView(view);
+        LinearLayout layoutList = view.findViewById(R.id.layoutListTimer);
+        layoutList.removeAllViews();
+
+        try {
+            JSONArray jsonArray = new JSONArray(prefs.getString("timer_list", "[]"));
+            if (jsonArray.length() == 0) {
+                TextView tv = new TextView(this);
+                tv.setText("Belum ada jadwal timer.");
+                tv.setTextColor(getColor(R.color.text_gray_light));
+                layoutList.addView(tv);
+            } else {
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    final int idx = i;
+                    JSONObject jadwal = jsonArray.getJSONObject(i);
+                    int lampu = jadwal.getInt("lampu") + 1;
+                    String start = String.format("%02d:%02d", jadwal.getInt("startHour"), jadwal.getInt("startMin"));
+                    String end = String.format("%02d:%02d", jadwal.getInt("endHour"), jadwal.getInt("endMin"));
+
+                    TextView tv = new TextView(this);
+                    tv.setText("Lampu " + lampu + "\nON: " + start + " | OFF: " + end);
+                    tv.setTextColor(getColor(R.color.text_dark_light));
+                    tv.setPadding(0, 16, 0, 16);
+
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    
+                    Button btnEdit = new Button(this);
+                    btnEdit.setText("Edit");
+                    btnEdit.setOnClickListener(v -> { builder.create().dismiss(); showTimerDialog(idx); });
+                    
+                    Button btnHapus = new Button(this);
+                    btnHapus.setText("Hapus");
+                    btnHapus.setOnClickListener(v -> {
+                        hapusTimer(idx);
+                        showRiwayatTimer(); // Refresh
+                    });
+
+                    row.addView(tv, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                    row.addView(btnEdit); row.addView(btnHapus);
+                    layoutList.addView(row);
+                }
+            }
+        } catch (JSONException e) { e.printStackTrace(); }
+
+        builder.setPositiveButton("Tutup", (d, w) -> d.dismiss());
+        builder.create().show();
+    }
+
+    private void hapusTimer(int index) {
+        try {
+            JSONArray jsonArray = new JSONArray(prefs.getString("timer_list", "[]"));
+            List<JSONObject> list = new ArrayList<>();
+            for (int i = 0; i < jsonArray.length(); i++) if (i != index) list.add(jsonArray.getJSONObject(i));
+            JSONArray newArray = new JSONArray();
+            for (JSONObject obj : list) newArray.put(obj);
+            prefs.edit().putString("timer_list", newArray.toString()).apply();
+        } catch (JSONException e) { e.printStackTrace(); }
     }
 
     private boolean isDarkMode() {
         int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         return nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
     }
-                                                   }
+                }
