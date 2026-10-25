@@ -11,4 +11,10 @@
     <color name="text_secondary">#AAAAAA</color>
     <color name="text_on">#4CAF50</color>
     <color name="text_off">#F44336</color>
+    <!-- Warna Baru -->
+    <color name="switch_thumb_on">#FFFFFF</color>
+    <color name="switch_track_on">#4CAF50</color>
+    <color name="switch_thumb_off">#B0B0B0</color>
+    <color name="switch_track_off">#444444</color>
+    <color name="bg_dialog">#2A2A2A</color>
 </resources>
