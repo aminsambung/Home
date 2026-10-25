@@ -3,6 +3,7 @@
     <!-- Warna Dasar (Light Theme) -->
     <color name="bg_light">#F2F7F5</color>
     <color name="bg_card_light">#FFFFFF</color>
+    <color name="bg_dialog">#FFFFFF</color>
     <color name="text_dark_light">#1A1A1A</color>
     <color name="text_gray_light">#888888</color>
 
