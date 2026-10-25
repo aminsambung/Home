@@ -3,7 +3,6 @@ package com.example.kontrollampu;
 import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
-import android.app.TimePickerDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -59,18 +58,18 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private boolean isUpdatingFromCode = false;
 
-    // Broadcast Receiver untuk menerima sinyal Alarm
+    // Broadcast Receiver untuk menerima sinyal Alarm (SILENT / TANPA NOTIFIKASI)
     private final BroadcastReceiver alarmReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             int lampuIndex = intent.getIntExtra("lampuIndex", -1);
             boolean nyala = intent.getBooleanExtra("nyala", false);
+            
             if (lampuIndex != -1) {
                 statusLampu[lampuIndex] = nyala;
                 updateTampilanLampu(lampuIndex, nyala, true);
                 simpanStatus(lampuIndex, nyala);
                 updateStatusInfo();
-                Toast.makeText(context, "Jadwal berjalan: Lampu " + (lampuIndex+1) + (nyala ? " ON" : " OFF"), Toast.LENGTH_SHORT).show();
             }
         }
     };
@@ -129,7 +128,6 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(alarmReceiver);
     }
 
-    // ... (Fungsi buatItemLampu, updateTampilanLampu, setSemuaLampu, updateStatusInfo, simpanStatus TETAP SAMA) ...
     private void updateTombolTemaUI(int mode) {
         if (mode == AppCompatDelegate.MODE_NIGHT_YES) btnTema.setText("☀️");
         else btnTema.setText("🌙");
@@ -226,7 +224,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ==========================================
-    // 1. RIWAYAT ATURAN (TETAP)
+    // 1. RIWAYAT ATURAN
     // ==========================================
     private void showRiwayatAturan() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -384,7 +382,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ==========================================
-    // 2. JADWAL TIMER (BARU: ON & OFF TIME)
+    // 2. JADWAL TIMER (START & END TIME)
     // ==========================================
     private void showTimerDialog(int editIndex) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -422,12 +420,12 @@ public class MainActivity extends AppCompatActivity {
             int sHour = timeStart.getHour(); int sMin = timeStart.getMinute();
             int eHour = timeEnd.getHour(); int eMin = timeEnd.getMinute();
 
-            if (editIndex >= 0) hapusTimer(editIndex); // Hapus lama jika edit
+            if (editIndex >= 0) hapusTimer(editIndex); 
             simpanJadwalKeJSON(lampuIdx, sHour, sMin, eHour, eMin);
-            setAlarm(lampuIdx, sHour, sMin, true);  // Pasang alarm ON
-            setAlarm(lampuIdx, eHour, eMin, false); // Pasang alarm OFF
+            setAlarm(lampuIdx, sHour, sMin, true);  
+            setAlarm(lampuIdx, eHour, eMin, false); 
             
-            Toast.makeText(this, "Jadwal Tersimpan & Alarm Aktif!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Jadwal Tersimpan!", Toast.LENGTH_SHORT).show();
             dialog.dismiss();
         });
     }
@@ -450,7 +448,6 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra("lampuIndex", lampuIdx);
         intent.putExtra("nyala", nyala);
         
-        // Menggunakan requestCode unik agar alarm tidak saling menimpa
         int reqCode = (lampuIdx * 10) + (nyala ? 1 : 2); 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(this, reqCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
@@ -459,7 +456,6 @@ public class MainActivity extends AppCompatActivity {
         calendar.set(Calendar.MINUTE, minute);
         calendar.set(Calendar.SECOND, 0);
 
-        // Jika waktu sudah lewat hari ini, set untuk besok
         if (calendar.getTimeInMillis() < System.currentTimeMillis()) {
             calendar.add(Calendar.DAY_OF_MONTH, 1);
         }
@@ -513,7 +509,7 @@ public class MainActivity extends AppCompatActivity {
                     btnHapus.setText("Hapus");
                     btnHapus.setOnClickListener(v -> {
                         hapusTimer(idx);
-                        showRiwayatTimer(); // Refresh
+                        showRiwayatTimer(); // Refresh list
                     });
 
                     row.addView(tv, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -542,4 +538,4 @@ public class MainActivity extends AppCompatActivity {
         int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         return nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
     }
-                }
+                         }
