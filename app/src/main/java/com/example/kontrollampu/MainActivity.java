@@ -26,6 +26,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.cardview.widget.CardView;
 
+import com.google.android.material.button.MaterialButton;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -39,8 +41,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int JUMLAH_LAMPU = 8;
     private GridLayout gridLampu;
-    private Button btnAllOn, btnAllOff, btnTimer, btnAturan, btnRiwayat;
-    private com.google.android.material.button.MaterialButton btnTema;
+    private MaterialButton btnAllOn, btnAllOff, btnTimer, btnAturan, btnRiwayat, btnTema;
     private TextView tvStatusInfo;
 
     private final ImageButton[] btnPowers = new ImageButton[JUMLAH_LAMPU];
@@ -55,7 +56,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Cek Tema sebelum layout dimuat
         prefs = getSharedPreferences("LampuPrefs", MODE_PRIVATE);
         int modeTema = prefs.getInt("mode_tema", AppCompatDelegate.MODE_NIGHT_NO);
         AppCompatDelegate.setDefaultNightMode(modeTema);
@@ -72,7 +72,6 @@ public class MainActivity extends AppCompatActivity {
         btnTema = findViewById(R.id.btnTema);
         tvStatusInfo = findViewById(R.id.tvStatusInfo);
 
-        // Setup Tombol Tema
         updateTombolTemaUI(modeTema);
         btnTema.setOnClickListener(v -> {
             int currentMode = AppCompatDelegate.getDefaultNightMode();
@@ -82,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
             
             prefs.edit().putInt("mode_tema", newMode).apply();
             AppCompatDelegate.setDefaultNightMode(newMode);
-            recreate(); // Refresh activity agar tema langsung berubah
+            recreate(); 
         });
 
         buatItemLampu();
@@ -346,11 +345,9 @@ public class MainActivity extends AppCompatActivity {
             checkBoxes[i] = new CheckBox(this);
             checkBoxes[i].setText("Lampu " + (i + 1));
             
-            // Mengatur warna teks checkbox
             if (isDarkMode()) checkBoxes[i].setTextColor(Color.WHITE);
             else checkBoxes[i].setTextColor(Color.BLACK);
             
-            // Mengatur warna kotak centang agar terlihat jelas
             ColorStateList colorStateList = new ColorStateList(
                 new int[][]{
                     new int[]{android.R.attr.state_checked},
@@ -521,4 +518,4 @@ public class MainActivity extends AppCompatActivity {
         int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         return nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
     }
-            }
+                                                }
