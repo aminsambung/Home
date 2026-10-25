@@ -13,6 +13,8 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.animation.Animation;
@@ -58,7 +60,17 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private boolean isUpdatingFromCode = false;
 
-    // Broadcast Receiver untuk menerima sinyal Alarm (SILENT / TANPA NOTIFIKASI)
+    // Handler untuk pengecekan UI setiap 1 menit
+    private final Handler handlerWaktu = new Handler(Looper.getMainLooper());
+    private final Runnable runnableCekWaktu = new Runnable() {
+        @Override
+        public void run() {
+            cekJadwalSekarang();
+            handlerWaktu.postDelayed(this, 60000); // Ulangi setiap 60 detik (1 menit)
+        }
+    };
+
+    // Broadcast Receiver untuk menerima sinyal Alarm dari AlarmManager
     private final BroadcastReceiver alarmReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -83,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Daftarkan Receiver
+        // Daftarkan Receiver Alarm
         IntentFilter filter = new IntentFilter("com.example.kontrollampu.ALARM_TRIGGER");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(alarmReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -115,17 +127,61 @@ public class MainActivity extends AppCompatActivity {
 
         btnAllOn.setOnClickListener(v -> setSemuaLampu(true));
         btnAllOff.setOnClickListener(v -> setSemuaLampu(false));
-        btnTimer.setOnClickListener(v -> showTimerDialog(-1)); // -1 = Buat Baru
+        btnTimer.setOnClickListener(v -> showTimerDialog(-1)); 
         btnAturan.setOnClickListener(v -> showAturanDialog(-1));
         btnRiwayat.setOnClickListener(v -> showMenuRiwayat());
 
         updateStatusInfo();
+        
+        // Panggil cek jadwal saat pertama kali dibuka, lalu jalankan timer 1 menit
+        cekJadwalSekarang();
+        handlerWaktu.post(runnableCekWaktu);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         unregisterReceiver(alarmReceiver);
+        handlerWaktu.removeCallbacks(runnableCekWaktu); // Hentikan handler saat app ditutup
+    }
+
+    private void cekJadwalSekarang() {
+        Calendar sekarang = Calendar.getInstance();
+        int jamSekarang = sekarang.get(Calendar.HOUR_OF_DAY);
+        int menitSekarang = sekarang.get(Calendar.MINUTE);
+
+        try {
+            JSONArray jsonArray = new JSONArray(prefs.getString("timer_list", "[]"));
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jadwal = jsonArray.getJSONObject(i);
+                int lampuIdx = jadwal.getInt("lampu");
+                
+                int sHour = jadwal.getInt("startHour");
+                int sMin = jadwal.getInt("startMin");
+                int eHour = jadwal.getInt("endHour");
+                int eMin = jadwal.getInt("endMin");
+
+                // Cek apakah jam & menit sekarang cocok dengan jadwal ON
+                if (jamSekarang == sHour && menitSekarang == sMin) {
+                    if (!statusLampu[lampuIdx]) {
+                        statusLampu[lampuIdx] = true;
+                        updateTampilanLampu(lampuIdx, true, true);
+                        simpanStatus(lampuIdx, true);
+                        updateStatusInfo();
+                    }
+                }
+                
+                // Cek apakah jam & menit sekarang cocok dengan jadwal OFF
+                if (jamSekarang == eHour && menitSekarang == eMin) {
+                    if (statusLampu[lampuIdx]) {
+                        statusLampu[lampuIdx] = false;
+                        updateTampilanLampu(lampuIdx, false, true);
+                        simpanStatus(lampuIdx, false);
+                        updateStatusInfo();
+                    }
+                }
+            }
+        } catch (JSONException e) { e.printStackTrace(); }
     }
 
     private void updateTombolTemaUI(int mode) {
@@ -212,9 +268,6 @@ public class MainActivity extends AppCompatActivity {
         prefs.edit().putBoolean("lampu_" + index, isNyala).apply();
     }
 
-    // ==========================================
-    // MENU RIWAYAT
-    // ==========================================
     private void showMenuRiwayat() {
         String[] pilihan = {"Riwayat Aturan Otomatis", "Riwayat Jadwal (Timer)"};
         new AlertDialog.Builder(this).setTitle("Pilih Riwayat").setItems(pilihan, (dialog, which) -> {
@@ -223,9 +276,6 @@ public class MainActivity extends AppCompatActivity {
         }).show();
     }
 
-    // ==========================================
-    // 1. RIWAYAT ATURAN
-    // ==========================================
     private void showRiwayatAturan() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_riwayat_aturan, null);
@@ -381,9 +431,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
-    // ==========================================
-    // 2. JADWAL TIMER (START & END TIME)
-    // ==========================================
     private void showTimerDialog(int editIndex) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_timer, null);
@@ -509,7 +556,7 @@ public class MainActivity extends AppCompatActivity {
                     btnHapus.setText("Hapus");
                     btnHapus.setOnClickListener(v -> {
                         hapusTimer(idx);
-                        showRiwayatTimer(); // Refresh list
+                        showRiwayatTimer();
                     });
 
                     row.addView(tv, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -538,4 +585,4 @@ public class MainActivity extends AppCompatActivity {
         int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         return nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
     }
-                         }
+}
