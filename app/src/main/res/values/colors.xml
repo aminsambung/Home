@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="hijau_primary">#4CAF50</color>
+    <color name="hijau_dark">#388E3C</color>
+    <color name="merah_primary">#F44336</color>
+    <color name="merah_dark">#D32F2F</color>
+    <color name="bg_dark">#121212</color>
+    <color name="card_off">#1E1E1E</color>
+    <color name="card_on">#2A2A1A</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#AAAAAA</color>
+    <color name="text_on">#4CAF50</color>
+    <color name="text_off">#F44336</color>
+</resources>
