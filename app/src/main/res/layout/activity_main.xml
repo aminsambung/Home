@@ -24,12 +24,12 @@
         android:textSize="14sp"
         android:layout_marginBottom="12dp"/>
 
-    <!-- Tombol Fitur Baru -->
+    <!-- Baris Tombol Fitur Utama -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="8dp">
         
         <Button
             android:id="@+id/btnTimer"
@@ -47,12 +47,24 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="⚙️ Aturan"
+            android:text="⚙️ Buat Aturan"
             android:textSize="12sp"
             android:backgroundTint="#9C27B0"
+            android:textColor="#FFF"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/btnRiwayat"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="📋 Riwayat"
+            android:textSize="12sp"
+            android:backgroundTint="#FF9800"
             android:textColor="#FFF"/>
     </LinearLayout>
 
+    <!-- Tombol ON/OFF Semua -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -79,7 +91,6 @@
             android:textColor="#FFFFFF"/>
     </LinearLayout>
 
-    <!-- Grid lampu tetap di sini -->
     <GridLayout
         android:id="@+id/gridLampu"
         android:layout_width="match_parent"
