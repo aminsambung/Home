@@ -6,7 +6,7 @@
     android:layout_margin="6dp"
     app:cardCornerRadius="16dp"
     app:cardElevation="4dp"
-    app:cardBackgroundColor="#1E1E1E"
+    app:cardBackgroundColor="@color/card_off"
     android:id="@+id/cardLampu">
 
     <LinearLayout
@@ -16,7 +16,6 @@
         android:padding="16dp"
         android:gravity="center">
 
-        <!-- Ikon Lampu -->
         <TextView
             android:id="@+id/tvIkon"
             android:layout_width="wrap_content"
@@ -25,33 +24,30 @@
             android:textSize="40sp"
             android:layout_marginBottom="8dp"/>
 
-        <!-- Nama Lampu -->
         <TextView
             android:id="@+id/tvNama"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Lampu 1"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="16sp"
             android:textStyle="bold"
             android:layout_marginBottom="4dp"/>
 
-        <!-- Status -->
         <TextView
             android:id="@+id/tvStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="OFF"
-            android:textColor="#F44336"
+            android:textColor="@color/text_off"
             android:textSize="12sp"
             android:layout_marginBottom="12dp"/>
 
-        <!-- Switch -->
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchLampu"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
+            android:layout_height="wrap_content"
+            app:thumbTint="@color/switch_thumb_on"
+            app:trackTint="@color/switch_track_on"/>
     </LinearLayout>
-
 </androidx.cardview.widget.CardView>
