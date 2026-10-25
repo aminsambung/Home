@@ -479,4 +479,4 @@ public class MainActivity extends AppCompatActivity {
         }.start();
         activeTimers.put(indexLampu, timer);
     }
-        }
+}
