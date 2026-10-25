@@ -47,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private boolean isUpdatingFromCode = false;
 
-    // Simpan instance timer yang aktif (Key: Index Lampu, Value: CountDownTimer)
     private final Map<Integer, CountDownTimer> activeTimers = new HashMap<>();
 
     @Override
@@ -70,13 +69,12 @@ public class MainActivity extends AppCompatActivity {
         btnAllOn.setOnClickListener(v -> setSemuaLampu(true));
         btnAllOff.setOnClickListener(v -> setSemuaLampu(false));
         btnTimer.setOnClickListener(v -> showMenuTimer());
-        btnAturan.setOnClickListener(v -> showAturanDialog());
+        btnAturan.setOnClickListener(v -> showAturanDialog(-1)); // -1 artinya buat baru
         btnRiwayat.setOnClickListener(v -> showMenuRiwayat());
 
         updateStatusInfo();
     }
 
-    // ... (Fungsi buatItemLampu, updateTampilanLampu, setSemuaLampu, updateStatusInfo, simpanStatus SAMA SEPERTI SEBELUMNYA) ...
     private void buatItemLampu() {
         LayoutInflater inflater = LayoutInflater.from(this);
         for (int i = 0; i < JUMLAH_LAMPU; i++) {
@@ -146,9 +144,6 @@ public class MainActivity extends AppCompatActivity {
         prefs.edit().putBoolean("lampu_" + index, isNyala).apply();
     }
 
-    // ==========================================
-    // FITUR MENU RIWAYAT (PILIHAN)
-    // ==========================================
     private void showMenuRiwayat() {
         String[] pilihan = {"Riwayat Aturan Otomatis", "Riwayat Timer Aktif"};
         new AlertDialog.Builder(this)
@@ -216,17 +211,15 @@ public class MainActivity extends AppCompatActivity {
                 btnEdit.setText("Edit");
                 btnEdit.setOnClickListener(v -> {
                     dialog.dismiss();
-                    // Buka dialog buat aturan dengan data yang sudah ada (fungsi edit)
-                    // (Untuk simplifikasi, edit akan menghapus yang lama dan membuka form baru)
-                    hapusAturan(indexAturan);
-                    showAturanDialog(); 
+                    // Buka form aturan dengan membawa data index aturan yang mau diedit
+                    showAturanDialog(indexAturan); 
                 });
 
                 Button btnHapus = new Button(this);
                 btnHapus.setText("Hapus");
                 btnHapus.setOnClickListener(v -> {
                     hapusAturan(indexAturan);
-                    renderListAturan(layoutList, dialog); // Refresh list
+                    renderListAturan(layoutList, dialog);
                 });
 
                 row.addView(tv, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -283,7 +276,7 @@ public class MainActivity extends AppCompatActivity {
                     entry.getValue().cancel();
                     activeTimers.remove(indexLampu);
                     Toast.makeText(this, "Timer Lampu " + (indexLampu+1) + " dibatalkan", Toast.LENGTH_SHORT).show();
-                    showRiwayatTimer(); // Refresh
+                    showRiwayatTimer();
                 });
 
                 row.addView(tv, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -297,9 +290,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ==========================================
-    // LOGIKA BUAT ATURAN (DENGAN SPINNER & CHECKBOX)
+    // LOGIKA BUAT/EDIT ATURAN (YANG DIPERBAIKI)
     // ==========================================
-    private void showAturanDialog() {
+    // Jika editIndex == -1, berarti BUAT BARU. Jika >= 0, berarti EDIT data di index tersebut.
+    private void showAturanDialog(int editIndex) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_aturan, null);
         builder.setView(view);
@@ -325,6 +319,31 @@ public class MainActivity extends AppCompatActivity {
             layoutCheckboxTarget.addView(checkBoxes[i]);
         }
 
+        // JIKA SEDANG EDIT: Muat data lama ke dalam form
+        if (editIndex >= 0) {
+            String jsonStr = prefs.getString("aturan_list", "[]");
+            try {
+                JSONArray jsonArray = new JSONArray(jsonStr);
+                JSONObject aturanLama = jsonArray.getJSONObject(editIndex);
+                
+                // Set Spinner Pemicu
+                spinnerPemicu.setSelection(aturanLama.getInt("pemicu"));
+                // Set Spinner Status Pemicu
+                spinnerStatusPemicu.setSelection(aturanLama.getBoolean("status_pemicu") ? 0 : 1);
+                // Set Spinner Aksi
+                spinnerAksiTarget.setSelection(aturanLama.getString("aksi").equals("ON") ? 0 : 1);
+                
+                // Set Checkbox Target
+                JSONArray targets = aturanLama.getJSONArray("targets");
+                for (int j = 0; j < targets.length(); j++) {
+                    checkBoxes[targets.getInt(j)].setChecked(true);
+                }
+                
+                // Ubah teks tombol menjadi Update
+                btnSimpanAturan.setText("Update Aturan");
+            } catch (JSONException e) { e.printStackTrace(); }
+        }
+
         AlertDialog dialog = builder.create();
         dialog.show();
 
@@ -342,8 +361,14 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Pilih minimal 1 lampu target!", Toast.LENGTH_SHORT).show();
                 return;
             }
+            
+            if (editIndex >= 0) {
+                // Jika edit, hapus data lama dulu, baru simpan data baru
+                hapusAturan(editIndex);
+            }
+            
             simpanAturanKeJSON(pemicuIndex, pemicuStatus, aksi, targetIndices);
-            Toast.makeText(this, "Aturan Tersimpan!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, (editIndex >= 0 ? "Aturan Diperbarui!" : "Aturan Tersimpan!"), Toast.LENGTH_SHORT).show();
             dialog.dismiss();
         });
     }
@@ -408,7 +433,6 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 1; i <= JUMLAH_LAMPU; i++) listLampu.add("Lampu " + i);
         spinnerLampu.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, listLampu));
         
-        // Tambahkan Spinner ke layout dialog secara programatik (di atas EditText)
         LinearLayout root = (LinearLayout) view;
         root.addView(spinnerLampu, 1);
 
@@ -447,7 +471,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFinish() {
                 isUpdatingFromCode = true;
-                switches[indexLampu].setChecked(true); // Nyala saat timer habis
+                switches[indexLampu].setChecked(true);
                 isUpdatingFromCode = false;
                 activeTimers.remove(indexLampu);
                 Toast.makeText(MainActivity.this, "Waktu habis! Lampu " + (indexLampu+1) + " menyala.", Toast.LENGTH_LONG).show();
@@ -455,4 +479,4 @@ public class MainActivity extends AppCompatActivity {
         }.start();
         activeTimers.put(indexLampu, timer);
     }
-}
+                        }
