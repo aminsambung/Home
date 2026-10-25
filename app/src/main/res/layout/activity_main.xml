@@ -3,15 +3,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#121212"
+    android:background="@color/bg_dark"
     android:padding="16dp">
 
-    <!-- Header -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="💡 Kontrol Lampu"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_primary"
         android:textSize="24sp"
         android:textStyle="bold"
         android:layout_marginBottom="4dp"/>
@@ -21,11 +20,39 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="0 dari 8 lampu menyala"
-        android:textColor="#AAAAAA"
+        android:textColor="@color/text_secondary"
         android:textSize="14sp"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="12dp"/>
 
-    <!-- Tombol ON/OFF Semua -->
+    <!-- Tombol Fitur Baru -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+        
+        <Button
+            android:id="@+id/btnTimer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="⏱️ Timer"
+            android:textSize="12sp"
+            android:backgroundTint="#2196F3"
+            android:textColor="#FFF"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/btnAturan"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="⚙️ Aturan"
+            android:textSize="12sp"
+            android:backgroundTint="#9C27B0"
+            android:textColor="#FFF"/>
+    </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -38,7 +65,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Nyalakan Semua"
-            android:backgroundTint="#4CAF50"
+            android:backgroundTint="@color/hijau_primary"
             android:textColor="#FFFFFF"
             android:layout_marginEnd="8dp"/>
 
@@ -48,11 +75,11 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Matikan Semua"
-            android:backgroundTint="#F44336"
+            android:backgroundTint="@color/merah_primary"
             android:textColor="#FFFFFF"/>
     </LinearLayout>
 
-    <!-- Grid 8 Lampu -->
+    <!-- Grid lampu tetap di sini -->
     <GridLayout
         android:id="@+id/gridLampu"
         android:layout_width="match_parent"
@@ -63,5 +90,4 @@
         android:alignmentMode="alignMargins"
         android:columnOrderPreserved="false"
         android:useDefaultMargins="true"/>
-
 </LinearLayout>
