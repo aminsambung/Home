@@ -14,16 +14,16 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
-        <!-- Tombol Power Bulat di Kanan Atas -->
+        <!-- Tombol Power Bulat -->
         <androidx.appcompat.widget.AppCompatImageButton
-            android:id="@+id/switchLampu"
+            android:id="@+id/btnPower"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_alignParentEnd="true"
             android:layout_alignParentTop="true"
             android:background="@drawable/bg_power_button"
-            android:src="@android:drawable/ic_lock_power_off"
-            android:tint="@color/power_off_tint"
+            android:src="@drawable/ic_power"
+            android:padding="8dp"
             android:contentDescription="Toggle Lampu"/>
 
         <!-- Ikon Lampu Besar -->
@@ -37,7 +37,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Nama dan Status Lampu di Bawah -->
+        <!-- Nama dan Status Lampu -->
         <TextView
             android:id="@+id/tvNama"
             android:layout_width="wrap_content"
