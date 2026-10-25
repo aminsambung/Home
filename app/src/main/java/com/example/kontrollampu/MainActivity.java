@@ -2,6 +2,7 @@ package com.example.kontrollampu;
 
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.view.LayoutInflater;
@@ -13,6 +14,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.GridLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -20,8 +22,6 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
-
-import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -39,14 +39,17 @@ public class MainActivity extends AppCompatActivity {
     private Button btnAllOn, btnAllOff, btnTimer, btnAturan, btnRiwayat;
     private TextView tvStatusInfo;
 
-    private final SwitchMaterial[] switches = new SwitchMaterial[JUMLAH_LAMPU];
+    // Array untuk UI
+    private final ImageButton[] btnPowers = new ImageButton[JUMLAH_LAMPU];
     private final TextView[] tvStatus = new TextView[JUMLAH_LAMPU];
     private final TextView[] tvIkon = new TextView[JUMLAH_LAMPU];
     private final CardView[] cards = new CardView[JUMLAH_LAMPU];
 
+    // Array untuk melacak status (true = ON, false = OFF)
+    private final boolean[] statusLampu = new boolean[JUMLAH_LAMPU];
+
     private SharedPreferences prefs;
     private boolean isUpdatingFromCode = false;
-
     private final Map<Integer, CountDownTimer> activeTimers = new HashMap<>();
 
     @Override
@@ -69,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
         btnAllOn.setOnClickListener(v -> setSemuaLampu(true));
         btnAllOff.setOnClickListener(v -> setSemuaLampu(false));
         btnTimer.setOnClickListener(v -> showMenuTimer());
-        btnAturan.setOnClickListener(v -> showAturanDialog(-1)); // -1 artinya buat baru
+        btnAturan.setOnClickListener(v -> showAturanDialog(-1));
         btnRiwayat.setOnClickListener(v -> showMenuRiwayat());
 
         updateStatusInfo();
@@ -82,24 +85,31 @@ public class MainActivity extends AppCompatActivity {
             cards[i] = itemView.findViewById(R.id.cardLampu);
             tvIkon[i] = itemView.findViewById(R.id.tvIkon);
             tvStatus[i] = itemView.findViewById(R.id.tvStatus);
-            switches[i] = itemView.findViewById(R.id.switchLampu);
+            btnPowers[i] = itemView.findViewById(R.id.btnPower); // Ambil ImageButton
 
             TextView tvNama = itemView.findViewById(R.id.tvNama);
             tvNama.setText("Lampu " + (i + 1));
 
             final int index = i;
-            boolean isNyala = prefs.getBoolean("lampu_" + index, false);
-            switches[index].setChecked(isNyala);
-            updateTampilanLampu(index, isNyala, false);
+            
+            // Load status dari memori
+            statusLampu[index] = prefs.getBoolean("lampu_" + index, false);
+            updateTampilanLampu(index, statusLampu[index], false);
 
-            switches[i].setOnCheckedChangeListener((bv, isChecked) -> {
-                updateTampilanLampu(index, isChecked, true);
+            // Klik Tombol Power
+            btnPowers[i].setOnClickListener(v -> {
+                statusLampu[index] = !statusLampu[index]; // Toggle status
+                updateTampilanLampu(index, statusLampu[index], true);
                 updateStatusInfo();
-                simpanStatus(index, isChecked);
-                if (!isUpdatingFromCode) evaluasiSemuaAturan(index, isChecked);
+                simpanStatus(index, statusLampu[index]);
+                
+                if (!isUpdatingFromCode) {
+                    evaluasiSemuaAturan(index, statusLampu[index]);
+                }
             });
 
-            itemView.setOnClickListener(v -> switches[index].toggle());
+            // Klik Kartu juga men-toggle power
+            itemView.setOnClickListener(v -> btnPowers[index].performClick());
             gridLampu.addView(itemView);
 
             GridLayout.LayoutParams params = (GridLayout.LayoutParams) itemView.getLayoutParams();
@@ -111,18 +121,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Update UI, Ikon, dan Warna Tombol Power
     private void updateTampilanLampu(int index, boolean nyala, boolean animate) {
         if (nyala) {
             tvStatus[index].setText("ON");
             tvStatus[index].setTextColor(getColor(R.color.text_on));
             tvIkon[index].setAlpha(1f);
-            cards[index].setCardBackgroundColor(getColor(R.color.card_on));
+            
+            // Tombol Power: Background hijau muda, Ikon hijau tua
+            btnPowers[index].setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.power_on_bg)));
+            btnPowers[index].setColorFilter(getColor(R.color.power_on_tint));
         } else {
             tvStatus[index].setText("OFF");
             tvStatus[index].setTextColor(getColor(R.color.text_off));
             tvIkon[index].setAlpha(0.3f);
-            cards[index].setCardBackgroundColor(getColor(R.color.card_off));
+            
+            // Tombol Power: Background abu-abu, Ikon abu-abu
+            btnPowers[index].setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.power_off_bg)));
+            btnPowers[index].setColorFilter(getColor(R.color.power_off_tint));
         }
+
         if (animate) {
             Animation anim = AnimationUtils.loadAnimation(this, android.R.anim.fade_in);
             anim.setDuration(300);
@@ -131,12 +149,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setSemuaLampu(boolean nyala) {
-        for (int i = 0; i < JUMLAH_LAMPU; i++) switches[i].setChecked(nyala);
+        for (int i = 0; i < JUMLAH_LAMPU; i++) {
+            statusLampu[i] = nyala;
+            updateTampilanLampu(i, nyala, true);
+            simpanStatus(i, nyala);
+        }
+        updateStatusInfo();
+        // Evaluasi semua aturan agar sinkron
+        for (int i = 0; i < JUMLAH_LAMPU; i++) {
+            if (!isUpdatingFromCode) evaluasiSemuaAturan(i, nyala);
+        }
     }
 
     private void updateStatusInfo() {
         int count = 0;
-        for (SwitchMaterial sw : switches) if (sw != null && sw.isChecked()) count++;
+        for (boolean status : statusLampu) {
+            if (status) count++;
+        }
         tvStatusInfo.setText(count + " dari " + JUMLAH_LAMPU + " lampu menyala");
     }
 
@@ -155,18 +184,13 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    // ==========================================
-    // 1. RIWAYAT ATURAN (EDIT & HAPUS)
-    // ==========================================
     private void showRiwayatAturan() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_riwayat_aturan, null);
         builder.setView(view);
         LinearLayout layoutList = view.findViewById(R.id.layoutListAturan);
-
         AlertDialog dialog = builder.create();
         dialog.show();
-        
         renderListAturan(layoutList, dialog);
     }
 
@@ -178,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
             if (jsonArray.length() == 0) {
                 TextView tv = new TextView(this);
                 tv.setText("Belum ada aturan.");
-                tv.setTextColor(getColor(R.color.text_secondary));
+                tv.setTextColor(getColor(R.color.text_gray));
                 layoutList.addView(tv);
                 return;
             }
@@ -201,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
 
                 TextView tv = new TextView(this);
                 tv.setText(text);
-                tv.setTextColor(getColor(R.color.text_primary));
+                tv.setTextColor(getColor(R.color.text_dark));
                 tv.setPadding(0, 16, 0, 16);
 
                 LinearLayout row = new LinearLayout(this);
@@ -211,7 +235,6 @@ public class MainActivity extends AppCompatActivity {
                 btnEdit.setText("Edit");
                 btnEdit.setOnClickListener(v -> {
                     dialog.dismiss();
-                    // Buka form aturan dengan membawa data index aturan yang mau diedit
                     showAturanDialog(indexAturan); 
                 });
 
@@ -244,9 +267,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
-    // ==========================================
-    // 2. RIWAYAT TIMER (HAPUS/BATALKAN)
-    // ==========================================
     private void showRiwayatTimer() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_riwayat_timer, null);
@@ -256,19 +276,18 @@ public class MainActivity extends AppCompatActivity {
         if (activeTimers.isEmpty()) {
             TextView tv = new TextView(this);
             tv.setText("Tidak ada timer yang aktif.");
-            tv.setTextColor(getColor(R.color.text_secondary));
+            tv.setTextColor(getColor(R.color.text_gray));
             layoutList.addView(tv);
         } else {
             for (Map.Entry<Integer, CountDownTimer> entry : activeTimers.entrySet()) {
                 final int indexLampu = entry.getKey();
-                
                 LinearLayout row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setPadding(0, 16, 0, 16);
 
                 TextView tv = new TextView(this);
                 tv.setText("Timer Lampu " + (indexLampu + 1) + " berjalan...");
-                tv.setTextColor(getColor(R.color.text_primary));
+                tv.setTextColor(getColor(R.color.text_dark));
 
                 Button btnBatal = new Button(this);
                 btnBatal.setText("Batalkan");
@@ -284,15 +303,10 @@ public class MainActivity extends AppCompatActivity {
                 layoutList.addView(row);
             }
         }
-
         builder.setPositiveButton("Tutup", (d, w) -> d.dismiss());
         builder.create().show();
     }
 
-    // ==========================================
-    // LOGIKA BUAT/EDIT ATURAN (YANG DIPERBAIKI)
-    // ==========================================
-    // Jika editIndex == -1, berarti BUAT BARU. Jika >= 0, berarti EDIT data di index tersebut.
     private void showAturanDialog(int editIndex) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_aturan, null);
@@ -315,31 +329,22 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < JUMLAH_LAMPU; i++) {
             checkBoxes[i] = new CheckBox(this);
             checkBoxes[i].setText("Lampu " + (i + 1));
-            checkBoxes[i].setTextColor(getColor(R.color.text_primary));
+            checkBoxes[i].setTextColor(getColor(R.color.text_dark));
             layoutCheckboxTarget.addView(checkBoxes[i]);
         }
 
-        // JIKA SEDANG EDIT: Muat data lama ke dalam form
         if (editIndex >= 0) {
             String jsonStr = prefs.getString("aturan_list", "[]");
             try {
                 JSONArray jsonArray = new JSONArray(jsonStr);
                 JSONObject aturanLama = jsonArray.getJSONObject(editIndex);
-                
-                // Set Spinner Pemicu
                 spinnerPemicu.setSelection(aturanLama.getInt("pemicu"));
-                // Set Spinner Status Pemicu
                 spinnerStatusPemicu.setSelection(aturanLama.getBoolean("status_pemicu") ? 0 : 1);
-                // Set Spinner Aksi
                 spinnerAksiTarget.setSelection(aturanLama.getString("aksi").equals("ON") ? 0 : 1);
-                
-                // Set Checkbox Target
                 JSONArray targets = aturanLama.getJSONArray("targets");
                 for (int j = 0; j < targets.length(); j++) {
                     checkBoxes[targets.getInt(j)].setChecked(true);
                 }
-                
-                // Ubah teks tombol menjadi Update
                 btnSimpanAturan.setText("Update Aturan");
             } catch (JSONException e) { e.printStackTrace(); }
         }
@@ -362,11 +367,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             
-            if (editIndex >= 0) {
-                // Jika edit, hapus data lama dulu, baru simpan data baru
-                hapusAturan(editIndex);
-            }
-            
+            if (editIndex >= 0) hapusAturan(editIndex);
             simpanAturanKeJSON(pemicuIndex, pemicuStatus, aksi, targetIndices);
             Toast.makeText(this, (editIndex >= 0 ? "Aturan Diperbarui!" : "Aturan Tersimpan!"), Toast.LENGTH_SHORT).show();
             dialog.dismiss();
@@ -401,17 +402,19 @@ public class MainActivity extends AppCompatActivity {
                     isUpdatingFromCode = true;
                     for (int j = 0; j < targets.length(); j++) {
                         int targetIdx = targets.getInt(j);
-                        if (switches[targetIdx].isChecked() != setKeNyala) switches[targetIdx].setChecked(setKeNyala);
+                        if (statusLampu[targetIdx] != setKeNyala) {
+                            statusLampu[targetIdx] = setKeNyala;
+                            updateTampilanLampu(targetIdx, setKeNyala, true);
+                            simpanStatus(targetIdx, setKeNyala);
+                        }
                     }
                     isUpdatingFromCode = false;
+                    updateStatusInfo();
                 }
             }
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
-    // ==========================================
-    // LOGIKA TIMER (INDIVIDU & RIWAYAT)
-    // ==========================================
     private void showMenuTimer() {
         String[] pilihan = {"Buat Timer Baru", "Lihat Timer Aktif"};
         new AlertDialog.Builder(this)
@@ -470,13 +473,14 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onTick(long millisUntilFinished) {}
             @Override
             public void onFinish() {
-                isUpdatingFromCode = true;
-                switches[indexLampu].setChecked(true);
-                isUpdatingFromCode = false;
+                statusLampu[indexLampu] = true;
+                updateTampilanLampu(indexLampu, true, true);
+                simpanStatus(indexLampu, true);
                 activeTimers.remove(indexLampu);
+                updateStatusInfo();
                 Toast.makeText(MainActivity.this, "Waktu habis! Lampu " + (indexLampu+1) + " menyala.", Toast.LENGTH_LONG).show();
             }
         }.start();
         activeTimers.put(indexLampu, timer);
     }
-}
+                                           }
