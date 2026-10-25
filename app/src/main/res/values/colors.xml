@@ -1,25 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Background Light Theme -->
+    <!-- Warna Dasar (Light Theme) -->
     <color name="bg_light">#F2F7F5</color>
-    <color name="bg_card">#FFFFFF</color>
-    <color name="bg_dialog">#FFFFFF</color>
+    <color name="bg_card_light">#FFFFFF</color>
+    <color name="text_dark_light">#1A1A1A</color>
+    <color name="text_gray_light">#888888</color>
 
-    <!-- Teks -->
-    <color name="text_dark">#1A1A1A</color>
-    <color name="text_gray">#888888</color>
-    <color name="text_primary">#1A1A1A</color>     <!-- Tambahan untuk dialog -->
-    <color name="text_secondary">#888888</color>   <!-- Tambahan untuk dialog -->
-    <color name="text_on">#4CAF50</color>
-    <color name="text_off">#D32F2F</color>
+    <!-- Warna Dasar (Dark Theme) -->
+    <color name="bg_dark">#121212</color>
+    <color name="bg_card_dark">#1E1E1E</color>
+    <color name="text_dark_dark">#FFFFFF</color>
+    <color name="text_gray_dark">#AAAAAA</color>
 
-    <!-- Tombol & Aksen -->
+    <!-- Aksen Warna -->
     <color name="hijau_primary">#4CAF50</color>
     <color name="merah_primary">#F44336</color>
     <color name="biru_timer">#2196F3</color>
     <color name="ungu_aturan">#9C27B0</color>
     <color name="oranye_riwayat">#FF9800</color>
-
+    <color name="text_on">#4CAF50</color>
+    <color name="text_off">#F44336</color>
+    <color name="text_primary">#1A1A1A</color> <!-- Default fallback -->
+    <color name="text_secondary">#888888</color> <!-- Default fallback -->
+    
     <!-- Tombol Power -->
     <color name="power_on_bg">#E8F5E9</color>
     <color name="power_on_tint">#4CAF50</color>
