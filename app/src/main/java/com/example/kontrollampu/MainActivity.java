@@ -41,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int JUMLAH_LAMPU = 8;
     private GridLayout gridLampu;
+    
+    // Deklarasi variabel menggunakan MaterialButton
     private MaterialButton btnAllOn, btnAllOff, btnTimer, btnAturan, btnRiwayat, btnTema;
     private TextView tvStatusInfo;
 
@@ -518,4 +520,4 @@ public class MainActivity extends AppCompatActivity {
         int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         return nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
     }
-                                                }
+                                                   }
