@@ -60,13 +60,13 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private boolean isUpdatingFromCode = false;
 
-    // Handler untuk pengecekan UI setiap 1 menit
+    // Handler untuk pengecekan UI setiap 10 detik
     private final Handler handlerWaktu = new Handler(Looper.getMainLooper());
     private final Runnable runnableCekWaktu = new Runnable() {
         @Override
         public void run() {
             cekJadwalSekarang();
-            handlerWaktu.postDelayed(this, 60000); // Ulangi setiap 60 detik (1 menit)
+            handlerWaktu.postDelayed(this, 10000); // Ulangi setiap 10 detik (10000 ms)
         }
     };
 
@@ -133,9 +133,9 @@ public class MainActivity extends AppCompatActivity {
 
         updateStatusInfo();
         
-        // Panggil cek jadwal saat pertama kali dibuka, lalu jalankan timer 1 menit
+        // Paksa cek saat pertama dibuka, lalu jalankan pengecekan setiap 10 detik
         cekJadwalSekarang();
-        handlerWaktu.post(runnableCekWaktu);
+        handlerWaktu.postDelayed(runnableCekWaktu, 10000);
     }
 
     @Override
@@ -150,6 +150,9 @@ public class MainActivity extends AppCompatActivity {
         int jamSekarang = sekarang.get(Calendar.HOUR_OF_DAY);
         int menitSekarang = sekarang.get(Calendar.MINUTE);
 
+        // Ubah waktu sekarang ke dalam satuan menit total
+        int totalMenitSekarang = (jamSekarang * 60) + menitSekarang;
+
         try {
             JSONArray jsonArray = new JSONArray(prefs.getString("timer_list", "[]"));
             for (int i = 0; i < jsonArray.length(); i++) {
@@ -161,24 +164,29 @@ public class MainActivity extends AppCompatActivity {
                 int eHour = jadwal.getInt("endHour");
                 int eMin = jadwal.getInt("endMin");
 
-                // Cek apakah jam & menit sekarang cocok dengan jadwal ON
-                if (jamSekarang == sHour && menitSekarang == sMin) {
-                    if (!statusLampu[lampuIdx]) {
-                        statusLampu[lampuIdx] = true;
-                        updateTampilanLampu(lampuIdx, true, true);
-                        simpanStatus(lampuIdx, true);
-                        updateStatusInfo();
+                int totalMenitStart = (sHour * 60) + sMin;
+                int totalMenitEnd = (eHour * 60) + eMin;
+
+                boolean harusNyala = false;
+
+                if (totalMenitStart <= totalMenitEnd) {
+                    // Jadwal normal di hari yang sama
+                    if (totalMenitSekarang >= totalMenitStart && totalMenitSekarang < totalMenitEnd) {
+                        harusNyala = true;
+                    }
+                } else {
+                    // Jadwal lewat tengah malam (misal ON 18:00, OFF 04:00)
+                    if (totalMenitSekarang >= totalMenitStart || totalMenitSekarang < totalMenitEnd) {
+                        harusNyala = true;
                     }
                 }
-                
-                // Cek apakah jam & menit sekarang cocok dengan jadwal OFF
-                if (jamSekarang == eHour && menitSekarang == eMin) {
-                    if (statusLampu[lampuIdx]) {
-                        statusLampu[lampuIdx] = false;
-                        updateTampilanLampu(lampuIdx, false, true);
-                        simpanStatus(lampuIdx, false);
-                        updateStatusInfo();
-                    }
+
+                // Jika status UI berbeda dengan seharusnya, perbarui
+                if (statusLampu[lampuIdx] != harusNyala) {
+                    statusLampu[lampuIdx] = harusNyala;
+                    updateTampilanLampu(lampuIdx, harusNyala, true);
+                    simpanStatus(lampuIdx, harusNyala);
+                    updateStatusInfo();
                 }
             }
         } catch (JSONException e) { e.printStackTrace(); }
@@ -474,6 +482,9 @@ public class MainActivity extends AppCompatActivity {
             
             Toast.makeText(this, "Jadwal Tersimpan!", Toast.LENGTH_SHORT).show();
             dialog.dismiss();
+            
+            // Paksa cek jadwal saat ini juga setelah disimpan
+            cekJadwalSekarang();
         });
     }
 
@@ -585,4 +596,4 @@ public class MainActivity extends AppCompatActivity {
         int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         return nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
     }
-}
+                }
