@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_dark"
+    android:background="@color/bg_light"
     android:padding="16dp">
 
+    <!-- Header -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="💡 Kontrol Lampu"
-        android:textColor="@color/text_primary"
-        android:textSize="24sp"
+        android:text="Smart Home"
+        android:textColor="@color/text_dark"
+        android:textSize="26sp"
         android:textStyle="bold"
         android:layout_marginBottom="4dp"/>
 
@@ -20,48 +22,48 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="0 dari 8 lampu menyala"
-        android:textColor="@color/text_secondary"
+        android:textColor="@color/text_gray"
         android:textSize="14sp"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="16dp"/>
 
-    <!-- Baris Tombol Fitur Utama -->
+    <!-- Baris Tombol Fitur (Dibuat lebih modern dengan CardView) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="12dp">
         
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTimer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="⏱️ Timer"
+            android:text="Timer"
             android:textSize="12sp"
-            android:backgroundTint="#2196F3"
-            android:textColor="#FFF"
+            app:backgroundTint="@color/biru_timer"
+            app:cornerRadius="12dp"
             android:layout_marginEnd="4dp"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAturan"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="⚙️ Buat Aturan"
+            android:text="Aturan"
             android:textSize="12sp"
-            android:backgroundTint="#9C27B0"
-            android:textColor="#FFF"
+            app:backgroundTint="@color/ungu_aturan"
+            app:cornerRadius="12dp"
             android:layout_marginEnd="4dp"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRiwayat"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="📋 Riwayat"
+            android:text="Riwayat"
             android:textSize="12sp"
-            android:backgroundTint="#FF9800"
-            android:textColor="#FFF"/>
+            app:backgroundTint="@color/oranye_riwayat"
+            app:cornerRadius="12dp"/>
     </LinearLayout>
 
     <!-- Tombol ON/OFF Semua -->
@@ -71,26 +73,27 @@
         android:orientation="horizontal"
         android:layout_marginBottom="16dp">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAllOn"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Nyalakan Semua"
-            android:backgroundTint="@color/hijau_primary"
-            android:textColor="#FFFFFF"
+            app:backgroundTint="@color/hijau_primary"
+            app:cornerRadius="12dp"
             android:layout_marginEnd="8dp"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAllOff"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Matikan Semua"
-            android:backgroundTint="@color/merah_primary"
-            android:textColor="#FFFFFF"/>
+            app:backgroundTint="@color/merah_primary"
+            app:cornerRadius="12dp"/>
     </LinearLayout>
 
+    <!-- Grid Lampu -->
     <GridLayout
         android:id="@+id/gridLampu"
         android:layout_width="match_parent"
