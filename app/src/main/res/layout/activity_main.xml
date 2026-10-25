@@ -7,7 +7,6 @@
     android:background="@color/bg_light"
     android:padding="16dp">
 
-    <!-- Header & Tombol Tema -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -44,10 +43,74 @@
         android:textColor="@color/text_gray_light"
         android:textSize="14sp"
         android:layout_marginBottom="16dp"/>
+
+    <!-- Baris Tombol Fitur -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
         
-    <!-- ... (SISA KODE TOMBOL TIMER, ATURAN, DLL SAMA SEPERTI SEBELUMNYA) ... -->
-    
-    <!-- Grid Lampu -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTimer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Timer"
+            android:textSize="12sp"
+            app:backgroundTint="@color/biru_timer"
+            app:cornerRadius="12dp"
+            android:layout_marginEnd="4dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAturan"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Aturan"
+            android:textSize="12sp"
+            app:backgroundTint="@color/ungu_aturan"
+            app:cornerRadius="12dp"
+            android:layout_marginEnd="4dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRiwayat"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Riwayat"
+            android:textSize="12sp"
+            app:backgroundTint="@color/oranye_riwayat"
+            app:cornerRadius="12dp"/>
+    </LinearLayout>
+
+    <!-- Tombol ON/OFF Semua -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAllOn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Nyalakan Semua"
+            app:backgroundTint="@color/hijau_primary"
+            app:cornerRadius="12dp"
+            android:layout_marginEnd="8dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAllOff"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Matikan Semua"
+            app:backgroundTint="@color/merah_primary"
+            app:cornerRadius="12dp"/>
+    </LinearLayout>
+
     <GridLayout
         android:id="@+id/gridLampu"
         android:layout_width="match_parent"
