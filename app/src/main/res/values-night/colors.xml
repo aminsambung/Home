@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Warna saat Dark Mode Aktif -->
+    <color name="bg_light">#121212</color>
+    <color name="bg_card_light">#1E1E1E</color>
+    <color name="text_dark_light">#FFFFFF</color>
+    <color name="text_gray_light">#AAAAAA</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#AAAAAA</color>
+    
+    <color name="power_on_bg">#2A2A1A</color>
+    <color name="power_off_bg">#2C2C2C</color>
+</resources>
